@@ -212,31 +212,32 @@ class Model():
         v_pos = torch_QuaternionProduct(out, virtual_inputs[:, -4:])
         r_pos = torch_QuaternionProduct(v_pos, real_postion_anchor)
 
-        loss = torch.zeros(7).cuda()
+        loss = {}
         if self.loss_follow_w > 0 and follow:
+            loss['follow'] = 0
             for i in range(-2,3):
-                loss[0] += self.loss_follow_w * self.loss_follow(v_pos, real_inputs[:,unit_size*(i+mid):unit_size*(i+mid)+4], None)
+                loss['follow'] += self.loss_follow_w * self.loss_follow(v_pos, real_inputs[:,unit_size*(i+mid):unit_size*(i+mid)+4], None)
         if self.loss_angle_w > 0 and follow:
             threshold = 6 / 180 * 3.1415926
             loss_angle, theta = self.loss_angle(v_pos, Rt, threshold = threshold)
-            loss[1] = self.loss_angle_w * loss_angle
+            loss['angle'] = self.loss_angle_w * loss_angle
         if self.loss_smooth_w > 0:
             loss_smooth = self.loss_smooth(out)
-            loss[2] = self.loss_smooth_w * loss_smooth
+            loss['smooth'] = self.loss_smooth_w * loss_smooth
         if self.loss_c2_smooth_w > 0: 
-            loss[3] = self.loss_c2_smooth_w * self.loss_c2_smooth(out, virtual_inputs[:, -4:], virtual_inputs[:, -8:-4])
+            loss['c2_smooth'] = self.loss_c2_smooth_w * self.loss_c2_smooth(out, virtual_inputs[:, -4:], virtual_inputs[:, -8:-4])
         if self.loss_undefine_w > 0 and undefine:
             Vt_undefine = v_pos.clone() 
             for i in range(0, 10, 2):
                 Rt_undefine = real_inputs[:,unit_size*(mid+i):unit_size*(mid+i)+4]
                 loss_undefine_w = self.loss_undefine_w * self.gaussian_weight[i]
-                loss[4] +=  loss_undefine_w * self.loss_undefine(Vt_undefine, Rt_undefine)
+                loss['undefine'] +=  loss_undefine_w * self.loss_undefine(Vt_undefine, Rt_undefine)
                 Vt_undefine = torch_QuaternionProduct(out, Vt_undefine)
                 Vt_undefine = torch_QuaternionProduct(out, Vt_undefine)
         if self.loss_opt_w > 0 and optical:
-            loss[5] = self.loss_opt_w * self.loss_optical(r_pos, vt_1, flo, flo_back, real_projections_t, real_projections_t_1) 
+            loss['opt'] = self.loss_opt_w * self.loss_optical(r_pos, vt_1, flo, flo_back, real_projections_t, real_projections_t_1)
         if self.loss_stay_w > 0 and stay:
-            loss[6] = self.loss_stay_w * self.loss_stay(out) 
+            loss['stay'] = self.loss_stay_w * self.loss_stay(out)
         return loss
 
 

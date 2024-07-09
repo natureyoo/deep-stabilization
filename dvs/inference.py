@@ -24,10 +24,9 @@ from gyro import (
     )
 from warp import warp_video
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-def run(model, loader, cf, USE_CUDA=True):
-    no_flo = False
+def run(model, loader, cf, USE_CUDA=True, no_flo=False):
     number_virtual, number_real = cf['data']["number_virtual"], cf['data']["number_real"]
     model.net.eval()
     model.unet.eval()
@@ -117,7 +116,7 @@ def run(model, loader, cf, USE_CUDA=True):
     return np.squeeze(virtual_queue, axis=0)
 
 
-def inference(cf, data_path, USE_CUDA):
+def inference(cf, data_path, USE_CUDA, flo_model=None, no_flo=False):
     checkpoints_dir = cf['data']['checkpoints_dir']
     checkpoints_dir = make_dir(checkpoints_dir, cf)
     files = os.listdir(data_path)
@@ -145,11 +144,11 @@ def inference(cf, data_path, USE_CUDA):
         model.unet.cuda()
 
     print("-----------Load Dataset----------")
-    test_loader = get_inference_data_loader(cf, data_path, no_flo = False)
+    test_loader = get_inference_data_loader(cf, data_path, no_flo=no_flo, flo_model=flo_model)
     data = test_loader.dataset.data[0]
 
     start_time = time.time()
-    virtual_queue= run(model, test_loader, cf, USE_CUDA=USE_CUDA)
+    virtual_queue= run(model, test_loader, cf, USE_CUDA=USE_CUDA, no_flo=no_flo)
 
     virtual_data = np.zeros((1,5))
     virtual_data[:,1:] = virtual_queue[0, 1:]
@@ -192,15 +191,25 @@ def main(args = None):
     USE_CUDA = cf['data']["use_cuda"]
 
     log_file = open(os.path.join(cf["data"]["log"], cf['data']['exp']+'_test.log'), 'w+')
-    printer = Printer(sys.stdout, log_file).open()
+    save_dir = os.path.join('./test', 'no_flo' if args.no_flo else args.flo_model)
+    processed_list = set([v.split('.')[0] for v in os.listdir(save_dir)])
+
+    os.makedirs(save_dir, exist_ok=True)
 
     data_name = sorted(os.listdir(dir_path))
+    #'s_110_indoor_walking_turning_night', 's_103c_outdoor_moving_large_object_daytime', 's_118_outdoor_driving_parallax_daytime', 's_107b_outdoor_walking_roadside_parallax_daytime', 's_104_outdoor_moving_fountain_daytime', 's_117_outdoor_edgecase_hollowobject', 's_116_outdoor_running_pavilion_night',
+    # data_name = ['s_114_outdoor_running_trail_daytime']
+    # data_name = ['s_110_indoor_walking_turning_night', 's_103c_outdoor_moving_large_object_daytime', 's_118_outdoor_driving_parallax_daytime', 's_107b_outdoor_walking_roadside_parallax_daytime', 's_104_outdoor_moving_fountain_daytime', 's_117_outdoor_edgecase_hollowobject', 's_116_outdoor_running_pavilion_night', 's_114_outdoor_running_trail_daytime', 's_101_outdoor_walking_backward_dancing_person_night']
     for i in range(len(data_name)):
+        if data_name[i] in processed_list:
+            print("Skip {}-th video {}...".format(str(i+1), data_name[i]))
+            continue
+
         print("Running Inference: " + str(i+1) + "/" + str(len(data_name)))
-        save_path = os.path.join("./test", cf['data']['exp'], data_name[i]+'_stab.mp4')
+        save_path = os.path.join(save_dir, cf['data']['exp'], data_name[i]+'_stab.mp4')
 
         data_path = os.path.join(dir_path, data_name[i])
-        data, virtual_queue, video_name, grid= inference(cf, data_path, USE_CUDA)
+        data, virtual_queue, video_name, grid= inference(cf, data_path, USE_CUDA, flo_model=args.flo_model, no_flo=args.no_flo)
 
         virtual_queue2 = None
         visual_result(cf, data, data_name[i], virtual_queue, virtual_queue2 = virtual_queue2, compare_exp = None)
@@ -213,5 +222,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Training model")
     parser.add_argument("--config", default="./conf/stabilzation.yaml", help="Config file.")
     parser.add_argument("--dir_path", default="./video")
+    parser.add_argument("--flo_model", default="raft_8x2_100k_mixed_368x768")
+    parser.add_argument("--no_flo", action="store_true")
     args = parser.parse_args()
     main(args = args)

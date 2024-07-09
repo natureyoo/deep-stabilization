@@ -23,15 +23,15 @@ from flownet2 import flow_utils
 from scipy import ndimage, misc
 from numpy import linalg as LA
 
-def get_data_loader(cf, no_flo = False):
+def get_data_loader(cf, no_flo = False, flo_model=None):
     size = cf["data"]["batch_size"]
     num_workers = cf["data"]["num_workers"]
-    train_data, test_data = get_dataset(cf, no_flo)
+    train_data, test_data = get_dataset(cf, no_flo, flo_model)
     trainloader = torch.utils.data.DataLoader(train_data, batch_size=size,shuffle=True, pin_memory=True, num_workers=num_workers)
     testloader = torch.utils.data.DataLoader(test_data, batch_size=size,shuffle=False, pin_memory=True, num_workers=num_workers)
     return trainloader,testloader
 
-def get_dataset(cf, no_flo = False):
+def get_dataset(cf, no_flo = False, flo_model=None):
     resize_ratio = cf["data"]["resize_ratio"]
     train_transform, test_transform = _data_transforms()
     train_path = os.path.join(cf["data"]["data_dir"], "training")
@@ -43,24 +43,24 @@ def get_dataset(cf, no_flo = False):
 
     train_data = Dataset_Gyro(
         train_path, sample_freq = cf["data"]["sample_freq"]*1000000, number_real = cf["data"]["number_real"], 
-        time_train = cf["data"]["time_train"]*1000000, transform = train_transform, resize_ratio = resize_ratio, no_flo = no_flo)
+        time_train = cf["data"]["time_train"]*1000000, transform = train_transform, resize_ratio = resize_ratio, no_flo = no_flo, flo_model=flo_model)
     test_data = Dataset_Gyro(
         test_path, sample_freq = cf["data"]["sample_freq"]*1000000, number_real = cf["data"]["number_real"], 
-        time_train = cf["data"]["time_train"]*1000000, transform = test_transform, resize_ratio = resize_ratio, no_flo = no_flo)
+        time_train = cf["data"]["time_train"]*1000000, transform = test_transform, resize_ratio = resize_ratio, no_flo = no_flo, flo_model=flo_model)
     return train_data, test_data
 
-def get_inference_data_loader(cf, data_path, no_flo = False):
-    test_data = get_inference_dataset(cf, data_path, no_flo)
+def get_inference_data_loader(cf, data_path, no_flo = False, flo_model=None):
+    test_data = get_inference_dataset(cf, data_path, no_flo, flo_model=flo_model)
     testloader = torch.utils.data.DataLoader(test_data, batch_size=1,shuffle=False, pin_memory=True, num_workers=1)
     return testloader
 
-def get_inference_dataset(cf, data_path, no_flo = False):
+def get_inference_dataset(cf, data_path, no_flo = False, flo_model=None):
     resize_ratio = cf["data"]["resize_ratio"]
     _, test_transform = _data_transforms()
     test_data = Dataset_Gyro(
         data_path, sample_freq = cf["data"]["sample_freq"]*1000000, number_real = cf["data"]["number_real"], 
         time_train = cf["data"]["time_train"]*1000000, transform = test_transform, resize_ratio = resize_ratio,
-        inference_only = True, no_flo = no_flo)
+        inference_only = True, no_flo = no_flo, flo_model=flo_model)
     return test_data
 
 def _data_transforms():
@@ -86,7 +86,7 @@ class DVS_data():
 
 class Dataset_Gyro(Dataset):
     def __init__(self, path, sample_freq = 33*1000000, number_real = 10, time_train = 2000*1000000, \
-        transform = None, inference_only = False, no_flo = False, resize_ratio = 1): 
+        transform = None, inference_only = False, no_flo = False, resize_ratio = 1, flo_model=None):
         r"""
         Arguments:
             sample_freq: real quaternions [t-sample_freq*number_real, t+sample_freq*number_real] ns
@@ -96,6 +96,7 @@ class Dataset_Gyro(Dataset):
         self.sample_freq = sample_freq
         self.number_real = number_real
         self.no_flo = no_flo
+        self.flo_model = flo_model
         self.resize_ratio = resize_ratio
         self.static_options = get_static()
         self.inference_only = inference_only
@@ -122,7 +123,6 @@ class Dataset_Gyro(Dataset):
     def process_one_video(self, path):
         dvs_data = DVS_data()
         files = sorted(os.listdir(path))
-        print(path)
         for f in files:
             file_path = os.path.join(path,f)
             if "gimbal" in file_path.lower():
@@ -143,6 +143,11 @@ class Dataset_Gyro(Dataset):
                 print("flo_shape:", dvs_data.flo_shape, end="    ")
             elif f == "flo_back":
                 dvs_data.flo_back_path, _ = LoadFlow(file_path)
+            elif f == self.flo_model:
+                dvs_data.flo_path, dvs_data.flo_shape = LoadFlow(os.path.join(file_path, 'flo'))
+                print("flo_path:", len(dvs_data.flo_path), end="    ")
+                print("flo_shape:", dvs_data.flo_shape, end="    ")
+                dvs_data.flo_back_path, _ = LoadFlow(os.path.join(file_path, 'flo_back'))
             
         print()
         if dvs_data.flo_path is not None:

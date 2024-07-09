@@ -2,7 +2,7 @@ data:
   exp: 'stabilzation_train'
   checkpoints_dir: './checkpoint'
   log: './log'
-  data_dir: './dataset_release'           
+  data_dir: '../data'           
   use_cuda: true
   batch_size: 16
   resize_ratio: 0.25

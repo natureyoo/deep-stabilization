@@ -118,8 +118,6 @@ def run_epoch(model, loader, cf, epoch, lr, optimizer=None, is_training=True, US
             loss_step = model.loss(out, vt_1, virtual_inputs, real_inputs_step, \
                 flo_step, flo_back_step, real_projections_t, real_projections_t_1, real_postion_anchor, \
                 follow = follow, undefine = undefine, optical = optical, stay = optical)
-
-            loss = loss_step
             
             virtual_position = virtual_inputs[:, -4:]
             pos = torch_QuaternionProduct(virtual_position, real_postion_anchor)
@@ -132,8 +130,9 @@ def run_epoch(model, loader, cf, epoch, lr, optimizer=None, is_training=True, US
 
             if (j+1) % 10 == 0:
                 print("Step: "+str(j+1)+"/"+str(step))
-                print(loss)
-            loss = torch.sum(loss)
+                print(loss_step)
+            # loss = sum(loss_step.values())
+            loss = loss_step['follow']
             if is_training:
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
@@ -217,7 +216,7 @@ def train(args = None):
                 init_lr = param['lr']
 
     print("-----------Load Dataset----------")
-    train_loader, test_loader = get_data_loader(cf, no_flo = False)
+    train_loader, test_loader = get_data_loader(cf, no_flo = False, flo_model=args.flo_model)
 
     print("----------Start Training----------")
     currentDT = datetime.datetime.now()
@@ -259,5 +258,6 @@ def train(args = None):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Training model")
     parser.add_argument("--config", default="./conf/stabilzation_train.yaml", help="Config file.")
+    parser.add_argument("--flo_model", default="raft_8x2_100k_mixed_368x768")
     args = parser.parse_args()
     train(args = args)
