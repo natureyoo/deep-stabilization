@@ -255,9 +255,97 @@ def train(args = None):
     print("------------End Training----------")
     return 
 
+
+def tmp_lstm_cell():
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+
+    # Define the LSTM Cell
+    input_size = 10
+    hidden_size = 20
+    lstm_cell = nn.LSTMCell(input_size, hidden_size)
+
+    # Define a simple optimizer
+    optimizer = optim.Adam(lstm_cell.parameters(), lr=0.01)
+
+    # Training loop for 10 steps
+    num_steps = 10
+    batch_size = 5
+    x = torch.randn(batch_size, input_size)  # Input tensor
+
+    for step in range(num_steps):
+        # Initialize hidden and cell states
+        hx = torch.randn(batch_size, hidden_size)  # Hidden state
+        cx = torch.randn(batch_size, hidden_size)  # Cell state
+
+        optimizer.zero_grad()
+
+        # Forward pass through LSTM Cell for a single time step
+        hx, cx = lstm_cell(x, (hx, cx))
+
+        # Dummy loss for backward pass
+        loss = hx.sum() + cx.sum()
+        print(f'Step {step + 1}, Loss: {loss.item()}')
+
+        # Backward pass
+        loss.backward()
+
+        # Update weights
+        optimizer.step()
+
+    print("Backward pass and weight update for LSTMCell completed successfully.")
+
+
+def tmp_lstm():
+    import torch
+    import torch.nn as nn
+    import torch.optim as optim
+
+    # Define the LSTM
+    input_size = 10
+    hidden_size = 20
+    num_layers = 2
+    lstm = nn.LSTM(input_size, hidden_size, num_layers)
+
+    # Define a simple optimizer
+    optimizer = optim.Adam(lstm.parameters(), lr=0.01)
+
+    # Training loop for 10 steps
+    num_steps = 10
+    batch_size = 5
+    seq_len = 6
+    x = torch.randn(seq_len, batch_size, input_size)  # Input tensor
+
+    for step in range(num_steps):
+        # Initialize hidden and cell states
+        h0 = torch.randn(num_layers, batch_size, hidden_size)  # Hidden state
+        c0 = torch.randn(num_layers, batch_size, hidden_size)  # Cell state
+
+        optimizer.zero_grad()
+
+        # Forward pass through LSTM
+        output, (hn, cn) = lstm(x, (h0, c0))
+
+        # Dummy loss for backward pass
+        loss = output.sum()
+        print(f'Step {step + 1}, Loss: {loss.item()}')
+
+        # Backward pass
+        loss.backward()
+
+        # Update weights
+        optimizer.step()
+
+    print("Backward pass and weight update for LSTM completed successfully.")
+
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Training model")
     parser.add_argument("--config", default="./conf/stabilzation_train.yaml", help="Config file.")
     parser.add_argument("--flo_model", default="raft_8x2_100k_mixed_368x768")
     args = parser.parse_args()
     train(args = args)
+    # tmp_lstm_cell()
+    # tmp_lstm()

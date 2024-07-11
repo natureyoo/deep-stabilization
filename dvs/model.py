@@ -118,7 +118,7 @@ class Net(nn.Module):
         rnns = []
         rnn_layer_param = self.rnn_param["layers"]
         rnn_layers = len(rnn_layer_param)
-        
+
         for layer in range(rnn_layers):
             if layer:
                 rnn = LayerLSTM(rnn_layer_param[layer-1][0], rnn_layer_param[layer][0], rnn_layer_param[layer][1])
@@ -126,9 +126,13 @@ class Net(nn.Module):
                 rnn = LayerLSTM(self._rnn_input_size, rnn_layer_param[layer][0], rnn_layer_param[layer][1])
             rnns.append(('%d'%layer, rnn))
         self.rnns = nn.Sequential(OrderedDict(rnns))
+        self._fc_input_size = rnn_layer_param[rnn_layers-1][0]
+        # self.hidden_size = self.rnn_param["layers"][0][0]
+        # self.rnns = nn.LSTM(self._rnn_input_size, self.hidden_size, len(self.rnn_param["layers"]), bias=self.rnn_param["layers"][0][1])
+        # self._fc_input_size = self.rnn_param["layers"][-1][0] #* 2 # ois
+        # self.hx = torch.zeros((len(self.rnn_param["layers"]), cf['data']['batch_size'], self.hidden_size)).cuda()
+        # self.cx = torch.zeros((len(self.rnn_param["layers"]), cf['data']['batch_size'], self.hidden_size)).cuda()
 
-        self._fc_input_size = rnn_layer_param[rnn_layers-1][0] #* 2 # ois
-        
         #FC Layers
         fcs = []
         fc_activation = Activates[self.fc_param["activate_function"]]
@@ -160,6 +164,8 @@ class Net(nn.Module):
     def init_hidden(self, batch_size):
         for i in range(len(self.rnns)):
             self.rnns[i].init_hidden(batch_size)
+        # self.hx = torch.zeros((len(self.rnn_param["layers"]), batch_size, self.hidden_size)).cuda()
+        # self.cx = torch.zeros((len(self.rnn_param["layers"]), batch_size, self.hidden_size)).cuda()
 
     def forward(self, x, flo, ois):
         b,c = x.size()   #x->[batch,channel,height,width]
