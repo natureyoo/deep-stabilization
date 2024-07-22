@@ -233,7 +233,8 @@ class Model():
         if self.loss_c2_smooth_w > 0: 
             loss['c2_smooth'] = self.loss_c2_smooth_w * self.loss_c2_smooth(out, virtual_inputs[:, -4:], virtual_inputs[:, -8:-4])
         if self.loss_undefine_w > 0 and undefine:
-            Vt_undefine = v_pos.clone() 
+            Vt_undefine = v_pos.clone()
+            loss['undefine'] = 0 
             for i in range(0, 10, 2):
                 Rt_undefine = real_inputs[:,unit_size*(mid+i):unit_size*(mid+i)+4]
                 loss_undefine_w = self.loss_undefine_w * self.gaussian_weight[i]

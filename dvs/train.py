@@ -131,8 +131,7 @@ def run_epoch(model, loader, cf, epoch, lr, optimizer=None, is_training=True, US
             if (j+1) % 10 == 0:
                 print("Step: "+str(j+1)+"/"+str(step))
                 print(loss_step)
-            # loss = sum(loss_step.values())
-            loss = loss_step['follow']
+            loss = sum(loss_step.values())
             if is_training:
                 optimizer.zero_grad()
                 loss.backward(retain_graph=True)
